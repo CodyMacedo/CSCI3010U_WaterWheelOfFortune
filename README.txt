@@ -4,7 +4,7 @@
 
 Particle System
 	-sand
-	-water
+	-water (if time permits)
 	-other particles(if time permits)
 
 Rigid Body System
