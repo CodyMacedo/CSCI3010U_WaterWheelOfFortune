@@ -24,6 +24,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+g = -9.8
 
 
 def normalize(v):
@@ -50,6 +51,7 @@ class Particle(pygame.sprite.Sprite):
 
 
     def f(self, t, y):
+        y[3] = g * self.mass
         return [y[2], y[3], 0, 0]
 
 
@@ -211,7 +213,7 @@ def main():
         newMass = 1
         # make sure particle is within the walls
         newPos = np.array([rand.uniform(0 + newRadius, 800 - newRadius), rand.uniform(0 + newRadius, 600 - newRadius)])
-        newVel = np.array([rand.uniform(0.1, 10), rand.uniform(0.1, 10)])
+        newVel = np.array([0, 0])
         
         world.add('waterdroplet.png', newRadius, newMass).set_pos(newPos).set_vel(newVel)
 
