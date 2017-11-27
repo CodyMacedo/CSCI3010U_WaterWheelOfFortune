@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import ode
 import random as rand
+import math
 
 
 # set up the colors
@@ -88,11 +89,61 @@ class Particle(pygame.sprite.Sprite):
     def pprint(self):
         print 'Particle', self.state
 
+class Wheel(pygame.sprite.Sprite):
+    def __init__(self, center, radius, mass=1000):
+        pygame.sprite.Sprite.__init__(self)
+
+
+        self.state = [0,0]
+        self.lines = []
+        self.mass = mass
+        self.t = 0
+        self.center = center
+        self.radius = radius
+        self.angle = 0
+
+
+        self.solver = ode(self.f)
+        self.solver.set_integrator('dop853')
+        self.solver.set_initial_value(self.state, self.t)
+
+
+    def f(self, t, y):
+        return [y[0], y[1]]
+
+
+    def set_vel(self, vel):
+        self.state[0] = vel
+        self.solver.set_initial_value(self.state, self.t)
+        return self
+
+
+    def update(self, dt):
+        self.t += dt
+        self.state = self.solver.integrate(self.t)
+
+
+    def draw(self, surface):
+        self.angle = (self.angle - 1) % 360
+
+        self.angle +=1.5
+
+        for i in range(0,359, 45):
+            x = self.center[0] + math.cos(math.radians(self.angle + i)) * self.radius
+            y = self.center[1] + math.sin(math.radians(self.angle + i)) * self.radius
+            self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y)))
+
+        self.circle = pygame.draw.circle(surface, BLACK, self.center, (int)(self.radius*.7), 1)
+        
+
+    def pprint(self):
+        print 'Wheel', self.state
 
 class World:
 
     def __init__(self, height, width):
         self.particles = []
+        self.wheels =[]
         self.height = height
         self.width = width
         self.e = 1. # Coefficient of restitution
@@ -102,6 +153,11 @@ class World:
         particle = Particle(imgfile, radius, mass)
         self.particles.append(particle)
         return particle
+
+    def addWheel(self, centre, radius):
+        wheel = Wheel(centre, radius)
+        self.wheels.append(wheel)
+        return wheel
 
 
     def pprint(self):
@@ -113,6 +169,8 @@ class World:
     def draw(self, screen):
         for d in self.particles:
             d.draw(screen)
+        for w in self.wheels:
+            w.draw(screen)
 
 
     def update(self, dt):
@@ -215,32 +273,37 @@ def main():
         newPos = np.array([rand.uniform(0 + newRadius, 800 - newRadius), rand.uniform(0 + newRadius, 600 - newRadius)])
         newVel = np.array([0, 0])
         
-        world.add('waterdroplet.png', newRadius, newMass).set_pos(newPos).set_vel(newVel)
+        world.add('sandparticle.png', newRadius, newMass).set_pos(newPos).set_vel(newVel)
+
+    world.addWheel([400, 300], 200)
 
    
     dt = 0.1
+    pause = False
 
     while True:
         # 30 fps
-        clock.tick(30)
+        if not pause:
+            clock.tick(30)
         
         event = pygame.event.poll()
         if event.type == pygame.QUIT:
-            pygame.quit()
             sys.exit(0)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_q:
             pygame.quit()
             sys.exit(0)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+            pause = not pause
         else:
             pass
 
+        if not pause:
+            # Clear the background, and draw the sprites
+            screen.fill(WHITE)
+            world.draw(screen)
+            world.update(dt)
 
-        # Clear the background, and draw the sprites
-        screen.fill(WHITE)
-        world.draw(screen)
-        world.update(dt)
-
-        pygame.display.update()
+            pygame.display.update()
 
 
 if __name__ == '__main__':
