@@ -56,8 +56,7 @@ class Particle(pygame.sprite.Sprite):
 
 
     def f(self, t, y, arg1):
-        y[3] += self.mass * arg1/30
-        return [y[2], y[3], 0, 0]
+        return [y[2], y[3], 0, arg1]
 
 
     def set_pos(self, pos):
@@ -86,7 +85,7 @@ class Particle(pygame.sprite.Sprite):
 
     def draw(self, surface):
         rect = self.image.get_rect()
-        rect.center = (self.state[0], 600-self.state[1]) # Flipping y
+        rect.center = (self.state[0], win_height-self.state[1]) # Flipping y
         surface.blit(self.image, rect)
 
 
@@ -101,7 +100,10 @@ class Wheel(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
 
-        self.state = [0,0]
+        self.state = np.zeros(6)
+        self.state[0:2] = np.zeros(2) # position
+        self.state[2:4] = np.zeros(2) # angular velocity
+        self.state[4:6] = np.zeros(2) # angular momentum
         self.lines = []
         self.mass = mass
         self.t = 0
@@ -109,6 +111,8 @@ class Wheel(pygame.sprite.Sprite):
         self.radius = radius
         self.angle = 0
 
+        self.torque = 0
+        
 
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
@@ -120,7 +124,7 @@ class Wheel(pygame.sprite.Sprite):
 
 
     def set_vel(self, vel):
-        self.state[0] = vel
+        self.state[2:4] = vel
         self.solver.set_initial_value(self.state, self.t)
         return self
 
@@ -156,7 +160,7 @@ class World:
         self.wheels =[]
         self.height = height
         self.width = width
-        self.e = .1 # Coefficient of restitution
+        self.e = 0.1 # Coefficient of restitution
 
 
     def add(self, imgfile, radius, mass=1.0):
@@ -215,7 +219,7 @@ class World:
         for i in range(0, len(self.particles)):
             if (self.particles[i].state[0] - self.particles[i].radius <= 0 or
                 self.particles[i].state[0] + self.particles[i].radius >= 800):
-                self.particles[i].state[2] *= -1
+                self.particles[i].state[2] *= -1*self.e
             elif (self.particles[i].state[1] - self.particles[i].radius <= 0):
                 self.particles[i].state[3] = 0
 
@@ -316,7 +320,44 @@ class World:
 
                 self.particles[i].set_vel(vel_i_aftercollision)
                 # break # Only handle a single collision per instance
+                
+                
+                # ANGULAR COLISION #
+                
+                # detect collision with lines on wheel
+                for x in range(len(wheels[j].lines)):
+                    line = self.wheels.lines[x]
+                    A = self.wheels[j].center
+                    C = self.particles[i].state[0:2]
+                    
+                    if A == line.topleft:
+                        B = line.bottomright
+                    elif A == line.bottomright:
+                        B = line.topleft
+                    elif A == line.topright:
+                        B = line.bottomleft
+                    else:
+                        B = line.topright
+                    
+                    dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
+                    
+                    Dx = (B[0]-A[0])/dist
+                    Dy = (B[1]-A[1])/dist
+                    
+                    t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
+                    
+                    Ex = t*Dx+A[0]
+                    Ey = t*Dy+A[1]
+                    
+                    dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
+                    
+                    if (dist2 < self.particles[i].radius):
+                        #Do conservation of momentum for angular momentum
+                    
+                        # Nothing I tried worked, I'll try to input the equations tomorrow morning
+                
 
+               
 
 
 
