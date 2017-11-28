@@ -17,6 +17,7 @@ import numpy as np
 from scipy.integrate import ode
 import random as rand
 import math
+import threading
 
 win_width = 800     # 500 cm = 5 m
 win_height = 600
@@ -189,7 +190,15 @@ class World:
 
 
     def update(self, dt):
-        self.check_for_collision()
+        t = []
+        for i in range(0, len(self.particles)):
+            self.check_for_collision(i)
+            try:
+                for j in range(len(self.wheels)):
+                    threading.Thread(target=self.check_wheel_collision(i, j)).start()
+            except:
+                print "Collision detection threading error"
+
         self.check_outside_screen()
 
         for d in self.particles:
@@ -215,146 +224,147 @@ class World:
             return True
 
 
-    def check_for_collision(self):
-        for i in range(0, len(self.particles)):
-            if (self.particles[i].state[0] - self.particles[i].radius <= 0 or
-                self.particles[i].state[0] + self.particles[i].radius >= 800):
-                self.particles[i].state[2] *= -1*self.e
-            elif (self.particles[i].state[1] - self.particles[i].radius <= 0):
-                self.particles[i].state[3] = 0
+    def check_for_collision(self, i):
+        if (self.particles[i].state[0] - self.particles[i].radius <= 0 or
+            self.particles[i].state[0] + self.particles[i].radius >= 800):
+            self.particles[i].state[2] *= -1*self.e
+        elif (self.particles[i].state[1] - self.particles[i].radius <= 0):
+            self.particles[i].state[3] = 0
 
-            for j in range(i+1, len(self.particles)):
-                if i == j:
-                    continue
-                #print 'Checking particles', i, 'and', j
-                pos_i = np.array(self.particles[i].state[0:2])
-                pos_j = np.array(self.particles[j].state[0:2])
-                dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
-
-
-                #print pos_i, pos_j, dist_ij
+        for j in range(i+1, len(self.particles)):
+            if i == j:
+                return
+            #print 'Checking particles', i, 'and', j
+            pos_i = np.array(self.particles[i].state[0:2])
+            pos_j = np.array(self.particles[j].state[0:2])
+            dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
 
 
-                radius_i = self.particles[i].radius
-                radius_j = self.particles[j].radius
-                if dist_ij > radius_i + radius_j:
-                    continue
+            #print pos_i, pos_j, dist_ij
 
 
-                # May be a collision
-                vel_i = np.array(self.particles[i].state[2:])
-                vel_j = np.array(self.particles[j].state[2:])
-                relative_vel_ij = vel_i - vel_j
-                n_ij = normalize(pos_i - pos_j)
+            radius_i = self.particles[i].radius
+            radius_j = self.particles[j].radius
+            if dist_ij > radius_i + radius_j:
+                return
 
 
-                #print relative_vel_ij, n_ij
+            # May be a collision
+            vel_i = np.array(self.particles[i].state[2:])
+            vel_j = np.array(self.particles[j].state[2:])
+            relative_vel_ij = vel_i - vel_j
+            n_ij = normalize(pos_i - pos_j)
 
 
-                if np.dot(relative_vel_ij, n_ij) >= 0:
-                    continue
+            #print relative_vel_ij, n_ij
 
 
-                # Ouch!
-                #print 'Collision between particles', i, 'and', j, '!!'
-                mass_i = self.particles[i].mass
-                mass_j = self.particles[j].mass
-
-                # Don't confuse this J with j
-                J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
+            if np.dot(relative_vel_ij, n_ij) >= 0:
+                return
 
 
-                vel_i_aftercollision = vel_i + n_ij * J / mass_i
-                vel_j_aftercollision = vel_j - n_ij * J / mass_j
+            # Ouch!
+            #print 'Collision between particles', i, 'and', j, '!!'
+            mass_i = self.particles[i].mass
+            mass_j = self.particles[j].mass
+
+            # Don't confuse this J with j
+            J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
 
 
-                #print 'Response'
-                #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
-
-                self.particles[i].set_vel(vel_i_aftercollision)
-                self.particles[j].set_vel(vel_j_aftercollision)
-                # break # Only handle a single collision per instance
+            vel_i_aftercollision = vel_i + n_ij * J / mass_i
+            vel_j_aftercollision = vel_j - n_ij * J / mass_j
 
 
-            # check for particle - wheel collission
-            for j in range(0, len(self.wheels)):
-                #print 'Checking particles', i, 'and wheel', j
-                pos_i = np.array(self.particles[i].state[0:2])
-                pos_j = np.array(self.wheels[j].center)
-                dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
+            #print 'Response'
+            #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
 
-                radius_i = self.particles[i].radius
-                radius_j = self.wheels[j].radius*.7
-                if dist_ij > radius_i + radius_j:
-                    continue
+            self.particles[i].set_vel(vel_i_aftercollision)
+            self.particles[j].set_vel(vel_j_aftercollision)
+            # break # Only handle a single collision per instance
 
 
-                # May be a collision
-                vel_i = np.array(self.particles[i].state[2:])
-                vel_j = 0
-                relative_vel_ij = vel_i - vel_j
-                n_ij = normalize(pos_i - pos_j)
 
 
-                #print relative_vel_ij, n_ij
+    def check_wheel_collision(self, i, j):
+        # check for particle - wheel collission
+        #print 'Checking particles', i, 'and wheel', j
+        pos_i = np.array(self.particles[i].state[0:2])
+        pos_j = np.array(self.wheels[j].center)
+        dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
+
+        radius_i = self.particles[i].radius
+        radius_j = self.wheels[j].radius*.7
+        if dist_ij > radius_i + radius_j:
+            return
 
 
-                if np.dot(relative_vel_ij, n_ij) >= 0:
-                    continue
+        # May be a collision
+        vel_i = np.array(self.particles[i].state[2:])
+        vel_j = 0
+        relative_vel_ij = vel_i - vel_j
+        n_ij = normalize(pos_i - pos_j)
 
 
-                # Ouch!
-                #print 'Collision between particles', i, 'and', j, '!!'
-                mass_i = self.particles[i].mass
-                mass_j = self.wheels[j].mass
-
-                # Don't confuse this J with j
-                J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
+        #print relative_vel_ij, n_ij
 
 
-                vel_i_aftercollision = vel_i + n_ij * J / mass_i
+        if np.dot(relative_vel_ij, n_ij) >= 0:
+            return
 
 
-                #print 'Response'
-                #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
+        # Ouch!
+        #print 'Collision between particles', i, 'and', j, '!!'
+        mass_i = self.particles[i].mass
+        mass_j = self.wheels[j].mass
 
-                self.particles[i].set_vel(vel_i_aftercollision)
-                # break # Only handle a single collision per instance
-                
-                
-                # ANGULAR COLISION #
-                
-                # detect collision with lines on wheel
-                for x in range(len(self.wheels[j].lines)):
-                    line = self.wheels[j].lines[x]
-                    A = self.wheels[j].center
-                    C = self.particles[i].state[0:2]
-                    
-                    if A == line.topleft:
-                        B = line.bottomright
-                    elif A == line.bottomright:
-                        B = line.topleft
-                    elif A == line.topright:
-                        B = line.bottomleft
-                    else:
-                        B = line.topright
-                    
-                    dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
-                    
-                    Dx = (B[0]-A[0])/dist
-                    Dy = (B[1]-A[1])/dist
-                    
-                    t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
-                    
-                    Ex = t*Dx+A[0]
-                    Ey = t*Dy+A[1]
-                    
-                    dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
-                    
-                    # if (dist2 < self.particles[i].radius):
-                        #Do conservation of momentum for angular momentum
-                    
-                        # Nothing I tried worked, I'll try to input the equations tomorrow morning
+        # Don't confuse this J with j
+        J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
+
+
+        vel_i_aftercollision = vel_i + n_ij * J / mass_i
+
+
+        #print 'Response'
+        #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
+
+        self.particles[i].set_vel(vel_i_aftercollision)
+        # break # Only handle a single collision per instance
+        
+        
+        # ANGULAR COLISION #
+        
+        # detect collision with lines on wheel
+        for x in range(len(self.wheels[j].lines)):
+            line = self.wheels[j].lines[x]
+            A = self.wheels[j].center
+            C = self.particles[i].state[0:2]
+            
+            if A == line.topleft:
+                B = line.bottomright
+            elif A == line.bottomright:
+                B = line.topleft
+            elif A == line.topright:
+                B = line.bottomleft
+            else:
+                B = line.topright
+            
+            dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
+            
+            Dx = (B[0]-A[0])/dist
+            Dy = (B[1]-A[1])/dist
+            
+            t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
+            
+            Ex = t*Dx+A[0]
+            Ey = t*Dy+A[1]
+            
+            dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
+            
+            # if (dist2 < self.particles[i].radius):
+                #Do conservation of momentum for angular momentum
+            
+                # Nothing I tried worked, I'll try to input the equations tomorrow morning
                 
 
                
