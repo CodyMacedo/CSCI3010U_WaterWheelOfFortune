@@ -18,7 +18,6 @@ from scipy.integrate import ode
 import random as rand
 import math
 
-rain = False
 win_width = 800     # 500 cm = 5 m
 win_height = 600
 
@@ -341,6 +340,7 @@ def main():
 
    
     pause = False
+    rain = False
 
     dt = 0.3
     pRadius = 10 # smallest radius is 3, anything smaller is invisible
@@ -354,6 +354,11 @@ def main():
         spoutPos = 380
         spoutWidth = 40
         range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+    
+    print "\n\nPress P key to pause or resume"
+    print "Press R key to toggle rain or spout"
+    print "Press A or D keys to move spout left or right\n\n"
+
 
 
     while True:
@@ -369,6 +374,12 @@ def main():
             sys.exit(0)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
             pause = not pause
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            rain = not rain
+            if rain: 
+                range = [0 + pRadius, win_width - pRadius]
+            else:
+                range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
         elif event.type == pygame.USEREVENT + 1:
             # new particle
             if (len(world.particles) < 100):
@@ -377,10 +388,10 @@ def main():
                 newVel = np.array([0, 0])
                 
                 world.add('sandparticle.png', pRadius, pMass).set_pos(newPos).set_vel(newVel)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT and not rain:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a and not rain:
             spoutPos -= 10
             range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT and not rain:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_d and not rain:
             spoutPos += 10
             range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
         else:
