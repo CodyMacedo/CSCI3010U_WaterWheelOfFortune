@@ -18,16 +18,17 @@ from scipy.integrate import ode
 import random as rand
 import math
 
+rain = False
+win_width = 800     # 500 cm = 5 m
+win_height = 600
 
 # set up the colors
 BLACK = (0, 0, 0)
+GREY = (150,150,150)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-
-win_width = 800     # 500 cm = 5 m
-win_height = 600
 
 
 def normalize(v):
@@ -342,7 +343,18 @@ def main():
     pause = False
 
     dt = 0.3
-    pygame.time.set_timer(pygame.USEREVENT + 1, 200)
+    pRadius = 10 # smallest radius is 3, anything smaller is invisible
+    pMass = 1
+
+    pygame.time.set_timer(pygame.USEREVENT + 1, 100)
+
+    if rain:
+        range = [0 + pRadius, win_width - pRadius]
+    else:
+        spoutPos = 380
+        spoutWidth = 40
+        range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+
 
     while True:
         # 30 fps
@@ -360,13 +372,17 @@ def main():
         elif event.type == pygame.USEREVENT + 1:
             # new particle
             if (len(world.particles) < 100):
-                newRadius = 30 # smallest radius is 3, anything smaller is invisible
-                newMass = 1
                 # make sure particle is within the walls
-                newPos = np.array([rand.uniform(0 + newRadius, win_width - newRadius), win_height])
+                newPos = np.array([rand.uniform(range[0],range[1]), win_height])
                 newVel = np.array([0, 0])
                 
-                world.add('sandparticle.png', newRadius, newMass).set_pos(newPos).set_vel(newVel)
+                world.add('sandparticle.png', pRadius, pMass).set_pos(newPos).set_vel(newVel)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT and not rain:
+            spoutPos -= 10
+            range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT and not rain:
+            spoutPos += 10
+            range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
         else:
             pass
 
@@ -375,7 +391,9 @@ def main():
             screen.fill(WHITE)
             world.draw(screen)
             world.update(dt)
-            pygame.draw.line(screen, RED, (400, 130), (430, 130))
+
+            if not rain:
+                pygame.draw.rect(screen, GREY, (spoutPos, 0, spoutWidth*1.5, 30))
 
             pygame.display.update()
 
