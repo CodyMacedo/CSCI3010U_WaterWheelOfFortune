@@ -325,8 +325,8 @@ class World:
                 # ANGULAR COLISION #
                 
                 # detect collision with lines on wheel
-                for x in range(len(wheels[j].lines)):
-                    line = self.wheels.lines[x]
+                for x in range(len(self.wheels[j].lines)):
+                    line = self.wheels[j].lines[x]
                     A = self.wheels[j].center
                     C = self.particles[i].state[0:2]
                     
@@ -351,7 +351,7 @@ class World:
                     
                     dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
                     
-                    if (dist2 < self.particles[i].radius):
+                    # if (dist2 < self.particles[i].radius):
                         #Do conservation of momentum for angular momentum
                     
                         # Nothing I tried worked, I'll try to input the equations tomorrow morning
@@ -423,7 +423,7 @@ def main():
                 range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
         elif event.type == pygame.USEREVENT + 1:
             # new particle
-            if (len(world.particles) < 100):
+            if (len(world.particles) < 30):
                 # make sure particle is within the walls
                 newPos = np.array([rand.uniform(range[0],range[1]), win_height])
                 newVel = np.array([0, 0])
