@@ -138,9 +138,9 @@ class Wheel(pygame.sprite.Sprite):
         for i in range(0,316, 45):
             x = self.center[0] + math.cos(math.radians(self.angle + i)) * self.radius
             y = self.center[1] + math.sin(math.radians(self.angle + i)) * self.radius
-            self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y)))
+            self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y), 5))
 
-        self.circle = pygame.draw.circle(surface, BLACK, self.center, (int)(self.radius*.7), 1)
+        self.circle = pygame.draw.circle(surface, BLACK, self.center, (int)(self.radius*.7), 10)
         
 
     def pprint(self):
