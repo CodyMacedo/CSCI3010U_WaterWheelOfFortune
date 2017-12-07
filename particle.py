@@ -156,7 +156,7 @@ class World:
         self.wheels =[]
         self.height = height
         self.width = width
-        self.e = 0.1 # Coefficient of restitution
+        self.e = .2 # Coefficient of restitution
 
 
     def add(self, imgfile, radius, mass=1.0):
@@ -190,18 +190,19 @@ class World:
             self.check_for_collision(i)
             try:
                 for j in range(len(self.wheels)):
-                    threading.Thread(target=self.check_wheel_collision(i, j)).start()
+                    t.append(threading.Thread(target=self.check_wheel_collision(i, j)))
+                    t[i].start()
             except:
                 print "Collision detection threading error"
+
+        for x in t:
+            x.join()
 
         self.check_outside_screen()
 
         for d in self.particles:
             d.update(dt)
 
-
-    def compute_collision_response(self, i, j):
-        pass
 
 
     def check_outside_screen(self):
@@ -219,6 +220,7 @@ class World:
             return True
 
 
+    # check for inter-particle collision 
     def check_for_collision(self, i):
         if (self.particles[i].state[0] - self.particles[i].radius <= 0 or
             self.particles[i].state[0] + self.particles[i].radius >= 800):
@@ -229,13 +231,9 @@ class World:
         for j in range(i+1, len(self.particles)):
             if i == j:
                 return
-            #print 'Checking particles', i, 'and', j
             pos_i = np.array(self.particles[i].state[0:2])
             pos_j = np.array(self.particles[j].state[0:2])
             dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
-
-
-            #print pos_i, pos_j, dist_ij
 
 
             radius_i = self.particles[i].radius
@@ -251,19 +249,13 @@ class World:
             n_ij = normalize(pos_i - pos_j)
 
 
-            #print relative_vel_ij, n_ij
-
-
             if np.dot(relative_vel_ij, n_ij) >= 0:
                 return
 
 
-            # Ouch!
-            #print 'Collision between particles', i, 'and', j, '!!'
             mass_i = self.particles[i].mass
             mass_j = self.particles[j].mass
 
-            # Don't confuse this J with j
             J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
 
 
@@ -271,18 +263,14 @@ class World:
             vel_j_aftercollision = vel_j - n_ij * J / mass_j
 
 
-            #print 'Response'
-            #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
-
             self.particles[i].set_vel(vel_i_aftercollision)
             self.particles[j].set_vel(vel_j_aftercollision)
-            # break # Only handle a single collision per instance
 
 
 
 
+    # check for particle - wheel collision
     def check_wheel_collision(self, i, j):
-        # check for particle - wheel collission
         #print 'Checking particles', i, 'and wheel', j
         pos_i = np.array(self.particles[i].state[0:2])
         pos_j = np.array(self.wheels[j].center)
@@ -301,60 +289,50 @@ class World:
         n_ij = normalize(pos_i - pos_j)
 
 
-        #print relative_vel_ij, n_ij
-
-
         if np.dot(relative_vel_ij, n_ij) >= 0:
             return
 
 
-        # Ouch!
-        #print 'Collision between particles', i, 'and', j, '!!'
         mass_i = self.particles[i].mass
         mass_j = self.wheels[j].mass
 
-        # Don't confuse this J with j
         J = -(1+self.e) * np.dot(relative_vel_ij, n_ij) / ((1./mass_i) + (1./mass_j))
 
 
         vel_i_aftercollision = vel_i + n_ij * J / mass_i
 
 
-        #print 'Response'
-        #print vel_i_aftercollision.shape, vel_j_aftercollision.shape
-
         self.particles[i].set_vel(vel_i_aftercollision)
-        # break # Only handle a single collision per instance
         
         
         # ANGULAR COLISION #
         
         # detect collision with lines on wheel
-        for x in range(len(self.wheels[j].lines)):
-            line = self.wheels[j].lines[x]
-            A = self.wheels[j].center
-            C = self.particles[i].state[0:2]
+        # for x in range(len(self.wheels[j].lines)):
+        #     line = self.wheels[j].lines[x]
+        #     A = self.wheels[j].center
+        #     C = self.particles[i].state[0:2]
             
-            if A == line.topleft:
-                B = line.bottomright
-            elif A == line.bottomright:
-                B = line.topleft
-            elif A == line.topright:
-                B = line.bottomleft
-            else:
-                B = line.topright
+        #     if A == line.topleft:
+        #         B = line.bottomright
+        #     elif A == line.bottomright:
+        #         B = line.topleft
+        #     elif A == line.topright:
+        #         B = line.bottomleft
+        #     else:
+        #         B = line.topright
             
-            dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
+        #     dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
             
-            Dx = (B[0]-A[0])/dist
-            Dy = (B[1]-A[1])/dist
+        #     Dx = (B[0]-A[0])/dist
+        #     Dy = (B[1]-A[1])/dist
             
-            t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
+        #     t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
             
-            Ex = t*Dx+A[0]
-            Ey = t*Dy+A[1]
+        #     Ex = t*Dx+A[0]
+        #     Ey = t*Dy+A[1]
             
-            dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
+        #     dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
             
             # if (dist2 < self.particles[i].radius):
                 #Do conservation of momentum for angular momentum
@@ -384,21 +362,24 @@ def main():
 
     world.addWheel([400, 300], 200)
 
-   
+    # spout position and width for when rain == false
+    spoutPos = 380
+    spoutWidth = 40
+
     pause = False
-    rain = False
+    rain = True     # particles randomly appear at top along widith when true, spout when false
+    maxP = 75       # maximum number of particles
 
     dt = 0.3
     pRadius = 10 # smallest radius is 3, anything smaller is invisible
     pMass = 1
 
-    pygame.time.set_timer(pygame.USEREVENT + 1, 100)
+    # timer to create more particles
+    pygame.time.set_timer(pygame.USEREVENT + 1, 50)
 
     if rain:
         range = [0 + pRadius, win_width - pRadius]
     else:
-        spoutPos = 380
-        spoutWidth = 40
         range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
     
     print "\n\nPress P key to pause or resume"
@@ -426,20 +407,28 @@ def main():
                 range = [0 + pRadius, win_width - pRadius]
             else:
                 range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
-        elif event.type == pygame.USEREVENT + 1:
-            # new particle
-            if (len(world.particles) < 30):
+        
+
+        elif event.type == pygame.USEREVENT + 1 and not pause:
+            # new particle generation
+            if (len(world.particles) < maxP):
                 # make sure particle is within the walls
                 newPos = np.array([rand.uniform(range[0],range[1]), win_height])
                 newVel = np.array([0, 0])
                 
-                world.add('sandparticle.png', pRadius, pMass).set_pos(newPos).set_vel(newVel)
+                world.add('waterdroplet.png', pRadius, pMass).set_pos(newPos).set_vel(newVel)
+        
+        # moves spout left
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a and not rain:
-            spoutPos -= 10
-            range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+            if spoutPos - 10 >= 0: # stops spout at edge
+                spoutPos -= 10
+                range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+        
+        # moves spout right
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_d and not rain:
-            spoutPos += 10
-            range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
+            if spoutPos + 10 + spoutWidth*1.5 <= win_width: # stops spout at edge
+                spoutPos += 10
+                range = [spoutPos + pRadius, spoutPos + spoutWidth + pRadius]
         else:
             pass
 
