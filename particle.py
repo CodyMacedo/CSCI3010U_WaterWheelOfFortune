@@ -85,10 +85,10 @@ class Wheel(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
 
-        self.state = np.zeros(6)
+        self.state = np.zeros(4)
         self.state[0:2] = np.zeros(2) # position
-        self.state[2:4] = np.zeros(2) # angular velocity
-        self.state[4:6] = np.zeros(2) # angular momentum
+        self.state[2] = 1 # angular velocity
+        self.state[3] = 0 # angular momentum
         self.lines = []
         self.mass = mass
         self.t = 0
@@ -101,7 +101,7 @@ class Wheel(pygame.sprite.Sprite):
 
 
     def set_vel(self, vel):
-        self.state[2:4] = vel
+        self.state[2] = vel
         return self
 
 
@@ -110,14 +110,16 @@ class Wheel(pygame.sprite.Sprite):
 
 
     def draw(self, surface):
-        self.angle = (self.angle - 1) % 360
 
-        self.angle +=1.5
+        self.angle += self.state[2]
 
         for i in range(0,316, 45):
             x = self.center[0] + math.cos(math.radians(self.angle + i)) * self.radius
             y = self.center[1] + math.sin(math.radians(self.angle + i)) * self.radius
-            self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y), 5))
+            if (len(self.lines) <= 7):
+                self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y), 5))
+            else:
+                self.lines[i/45] = pygame.draw.line(surface, BLACK, self.center, (x,y), 5)
 
         self.circle = pygame.draw.circle(surface, BLACK, self.center, (int)(self.radius*.7), 10)
         
@@ -301,36 +303,36 @@ class World:
         # ANGULAR COLISION #
         
         # detect collision with lines on wheel
-        # for x in range(len(self.wheels[j].lines)):
-        #     line = self.wheels[j].lines[x]
-        #     A = self.wheels[j].center
-        #     C = self.particles[i].state[0:2]
+        for x in range(len(self.wheels[j].lines)):
+            line = self.wheels[j].lines[x]
+            A = self.wheels[j].center
+            C = self.particles[i].state[0:2]
             
-        #     if A == line.topleft:
-        #         B = line.bottomright
-        #     elif A == line.bottomright:
-        #         B = line.topleft
-        #     elif A == line.topright:
-        #         B = line.bottomleft
-        #     else:
-        #         B = line.topright
+            if A == line.topleft:
+                B = line.bottomright
+            elif A == line.bottomright:
+                B = line.topleft
+            elif A == line.topright:
+                B = line.bottomleft
+            else:
+                B = line.topright
             
-        #     dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
+            dist = np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2)
             
-        #     Dx = (B[0]-A[0])/dist
-        #     Dy = (B[1]-A[1])/dist
+            Dx = (B[0]-A[0])/dist
+            Dy = (B[1]-A[1])/dist
             
-        #     t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
+            t = Dx*(C[0]-A[0])+Dy*(C[1]-A[1])
             
-        #     Ex = t*Dx+A[0]
-        #     Ey = t*Dy+A[1]
+            Ex = t*Dx+A[0]
+            Ey = t*Dy+A[1]
             
-        #     dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
+            dist2 = np.sqrt((Ex-C[0])**2+(Ey-C[1])**2)
             
-            # if (dist2 < self.particles[i].radius):
+            #if (dist2 < self.particles[i].radius):
                 #Do conservation of momentum for angular momentum
-            
-                # Nothing I tried worked, I'll try to input the equations tomorrow morning
+                
+                
                 
 
                
@@ -360,8 +362,8 @@ def main():
     spoutWidth = 40
 
     pause = False
-    rain = True     # particles randomly appear at top along widith when true, spout when false
-    maxP = 75       # maximum number of particles
+    rain = False     # particles randomly appear at top along widith when true, spout when false
+    maxP = 100      # maximum number of particles
 
     dt = 0.3
     pRadius = 10 # smallest radius is 3, anything smaller is invisible
