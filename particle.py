@@ -45,33 +45,22 @@ class Particle(pygame.sprite.Sprite):
         self.gravity = -9.8
 
 
-        self.solver = ode(self.f)
-        self.solver.set_integrator('dop853')
-        self.solver.set_initial_value(self.state, self.t)
-        self.solver.set_f_params(self.gravity)
-
-
-    def f(self, t, y, arg1):
-        return [y[2], y[3], 0, arg1]
-
-
     def set_pos(self, pos):
         self.state[0:2] = pos
-        self.solver.set_initial_value(self.state, self.t)
         return self
 
 
     def set_vel(self, vel):
-        #print vel, 'fsdf'
-
         self.state[2:] = vel
-        self.solver.set_initial_value(self.state, self.t)
         return self
 
 
     def update(self, dt):
         self.t += dt
-        self.state = self.solver.integrate(self.t)
+        self.state[3] += dt * self.gravity
+
+        self.state[0] += self.state[2] * dt
+        self.state[1] += self.state[3] * dt
 
 
     def move_by(self, delta):
@@ -110,24 +99,14 @@ class Wheel(pygame.sprite.Sprite):
         self.torque = 0
         
 
-        self.solver = ode(self.f)
-        self.solver.set_integrator('dop853')
-        self.solver.set_initial_value(self.state, self.t)
-
-
-    def f(self, t, y):
-        return [y[0], y[1]]
-
 
     def set_vel(self, vel):
         self.state[2:4] = vel
-        self.solver.set_initial_value(self.state, self.t)
         return self
 
 
     def update(self, dt):
         self.t += dt
-        self.state = self.solver.integrate(self.t)
 
 
     def draw(self, surface):
@@ -135,10 +114,10 @@ class Wheel(pygame.sprite.Sprite):
 
         self.angle +=1.5
 
-        for i in range(0,316, 45):
-            x = self.center[0] + math.cos(math.radians(self.angle + i)) * self.radius
-            y = self.center[1] + math.sin(math.radians(self.angle + i)) * self.radius
-            self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y)))
+        # for i in range(0,316, 45):
+        #     x = self.center[0] + math.cos(math.radians(self.angle + i)) * self.radius
+        #     y = self.center[1] + math.sin(math.radians(self.angle + i)) * self.radius
+        #     self.lines.append(pygame.draw.line(surface, BLACK, self.center, (x,y)))
 
         self.circle = pygame.draw.circle(surface, BLACK, self.center, (int)(self.radius*.7), 1)
         
@@ -186,6 +165,9 @@ class World:
 
     def update(self, dt):
         t = []
+        for d in self.particles:
+            d.update(dt)
+
         for i in range(0, len(self.particles)):
             self.check_for_collision(i)
             try:
@@ -199,9 +181,6 @@ class World:
             x.join()
 
         self.check_outside_screen()
-
-        for d in self.particles:
-            d.update(dt)
 
 
 
@@ -271,7 +250,6 @@ class World:
 
     # check for particle - wheel collision
     def check_wheel_collision(self, i, j):
-        #print 'Checking particles', i, 'and wheel', j
         pos_i = np.array(self.particles[i].state[0:2])
         pos_j = np.array(self.wheels[j].center)
         dist_ij = np.sqrt(np.sum((pos_i - pos_j)**2))
@@ -280,6 +258,21 @@ class World:
         radius_j = self.wheels[j].radius*.7
         if dist_ij > radius_i + radius_j:
             return
+
+
+
+        # ensures particles do not cross wheel boundaries
+        dist_in = -(dist_ij - radius_j - radius_i) # distance inside of wheel
+        theta = math.asin((pos_i[1] - pos_j[1]) /dist_ij) #angle from centre of wheel
+        newPos = [(math.cos(theta) * dist_in), (math.sin(theta) * dist_in)] 
+
+        # makes sure to flip new x pos to the left
+        if pos_i[0] < pos_j[0]:
+            newPos[0] *= -1
+
+        # updates the particle position
+        self.particles[i].set_pos([pos_i[0] + newPos[0], pos_i[1] + newPos[1]])
+
 
 
         # May be a collision
